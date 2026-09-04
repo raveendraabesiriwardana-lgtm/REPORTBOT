@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Report Bot</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="dashboard">
+            <header>
+                <h1>📊 Dashboard</h1>
+                <button onclick="logout()" class="logout-btn">Logout</button>
+            </header>
+
+            <div class="user-info">
+                <h2>Welcome, <span id="userName"></span>!</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <h3>🪙 Coins</h3>
+                        <p id="coinCount">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>📱 Bot Status</h3>
+                        <p id="botStatus">Not Paired</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>📊 Total Reports</h3>
+                        <p id="totalReports">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>👥 Active Bots</h3>
+                        <p id="activeBots">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <div class="referral-section">
+                    <h3>🔗 Your Referral Link</h3>
+                    <div class="link-box">
+                        <input type="text" id="referralLink" readonly>
+                        <button onclick="copyLink()">📋 Copy</button>
+                    </div>
+                    <p>Share this link to earn coins when others sign up!</p>
+                </div>
+
+                <div class="bot-section">
+                    <h3>🤖 Pair WhatsApp Bot</h3>
+                    <button onclick="pairBot()" id="pairBotBtn" class="primary-btn">
+                        Connect WhatsApp
+                    </button>
+                    <div id="qrContainer" style="display:none;">
+                        <p>Scan QR code with WhatsApp</p>
+                        <div id="qrCode"></div>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <h3>📨 Send Report</h3>
+                    <div class="report-input">
+                        <input type="text" id="reportNumber" placeholder="Enter phone number">
+                        <button onclick="sendReport()" class="danger-btn">🚨 Report</button>
+                    </div>
+                    <p>Cost: 10 coins per report</p>
+                </div>
+
+                <div class="reports-list">
+                    <h3>📋 Recent Reports</h3>
+                    <div id="reportsContainer">
+                        <p>No reports yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userData = localStorage.getItem('user');
+            if (!userData) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            currentUser = JSON.parse(userData);
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('coinCount').textContent = currentUser.coins;
+            
+            // Generate referral link
+            document.getElementById('referralLink').value = 
+                `${window.location.origin}/register?ref=${currentUser.id}`;
+
+            loadBotStats();
+            loadReports();
+        });
+
+        async function loadBotStats() {
+            try {
+                const response = await fetch(`/api/bot-stats/${currentUser.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.paired) {
+                    document.getElementById('botStatus').textContent = '✅ Connected';
+                    document.getElementById('totalReports').textContent = data.totalReports || 0;
+                    document.getElementById('activeBots').textContent = data.activeUsers || 0;
+                } else {
+                    document.getElementById('botStatus').textContent = '❌ Not Paired';
+                }
+            } catch (error) {
+                console.error('Error loading bot stats:', error);
+            }
+        }
+
+        async function loadReports() {
+            try {
+                const response = await fetch(`/api/reports/${currentUser.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.reports && data.reports.length > 0) {
+                    const container = document.getElementById('reportsContainer');
+                    container.innerHTML = data.reports.map(r => 
+                        `<div class="report-item">
+                            <span>📞 ${r.reportedNumber}</span>
+                            <span>${new Date(r.createdAt).toLocaleDateString()}</span>
+                            <span>${r.status}</span>
+                        </div>`
+                    ).join('');
+                }
+            } catch (error) {
+                console.error('Error loading reports:', error);
+            }
+        }
+
+        async function pairBot() {
+            try {
+                const response = await fetch('/api/pair-bot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ userId: currentUser.id })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Bot pairing initiated! Check terminal for QR code.');
+                    // In production, you'd show QR code here
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function sendReport() {
+            const number = document.getElementById('reportNumber').value;
+            if (!number) {
+                alert('Please enter a phone number');
+                return;
+            }
+
+            // This would trigger the bot to send the report
+            alert(`Report will be sent to ${number} using your bot.`);
+        }
+
+        function copyLink() {
+            const link = document.getElementById('referralLink');
+            link.select();
+            document.execCommand('copy');
+            alert('Referral link copied!');
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+</html>
