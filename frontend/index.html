@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Report Bot</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>🤖 WhatsApp Report Bot</h1>
+            <p>Report spam numbers automatically with our bot system</p>
+            <div class="hero-buttons">
+                <a href="login.html" class="btn-primary">Get Started</a>
+                <a href="#features" class="btn-secondary">Learn More</a>
+            </div>
+        </div>
+
+        <div id="features" class="features">
+            <div class="feature-card">
+                <h3>🛡️ Auto Report</h3>
+                <p>Automatically report spam numbers to all active bots</p>
+            </div>
+            <div class="feature-card">
+                <h3>🪙 Coin System</h3>
+                <p>Earn coins by referring friends and sharing your link</p>
+            </div>
+            <div class="feature-card">
+                <h3>📊 Live Stats</h3>
+                <p>Track your reports and active bots in real-time</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if user is already logged in
+        const user = localStorage.getItem('user');
+        if (user) {
+            window.location.href = 'dashboard.html';
+        }
+    </script>
+</body>
+</html>
