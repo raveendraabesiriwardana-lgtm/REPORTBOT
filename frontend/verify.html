@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify - Report Bot</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-box">
+            <h1>🔐 Verify Your Account</h1>
+            <p>Enter the 6-digit code sent to your email</p>
+            
+            <div class="verify-container">
+                <input type="text" id="code1" maxlength="1" class="code-input" autofocus>
+                <input type="text" id="code2" maxlength="1" class="code-input">
+                <input type="text" id="code3" maxlength="1" class="code-input">
+                <input type="text" id="code4" maxlength="1" class="code-input">
+                <input type="text" id="code5" maxlength="1" class="code-input">
+                <input type="text" id="code6" maxlength="1" class="code-input">
+            </div>
+
+            <button onclick="verifyCode()" class="btn-primary">Verify</button>
+            
+            <div id="message" class="message"></div>
+            
+            <p class="auth-link">Didn't receive code? <a href="#" onclick="resendCode()">Resend</a></p>
+            <p class="auth-link"><a href="login.html">Back to Login</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Auto focus next input
+        document.querySelectorAll('.code-input').forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                if (e.target.value.length === 1) {
+                    const next = document.getElementById(`code${index + 2}`);
+                    if (next) next.focus();
+                }
+            });
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value) {
+                    const prev = document.getElementById(`code${index}`);
+                    if (prev) prev.focus();
+                }
+            });
+        });
+
+        async function verifyCode() {
+            const code = Array.from(document.querySelectorAll('.code-input'))
+                .map(input => input.value)
+                .join('');
+
+            if (code.length !== 6) {
+                showMessage('Please enter all 6 digits', 'error');
+                return;
+            }
+
+            const userId = localStorage.getItem('userId');
+            
+            try {
+                const response = await fetch('/api/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, code })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    showMessage('✅ Verified successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1500);
+                } else {
+                    showMessage('❌ ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        async function resendCode() {
+            const userId = localStorage.getItem('userId');
+            
+            try {
+                const response = await fetch('/api/resend-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('✅ New code sent to your email!', 'success');
+                } else {
+                    showMessage('❌ ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = 'message ' + type;
+            msg.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
