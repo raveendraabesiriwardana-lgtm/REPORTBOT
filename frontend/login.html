@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Report Bot</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .otp-input-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .otp-input-group input {
+            width: 50px;
+            height: 60px;
+            text-align: center;
+            font-size: 24px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        .otp-input-group input:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+            outline: none;
+        }
+        .otp-input-group input.filled {
+            border-color: #4CAF50;
+            background: #f0fff0;
+        }
+        .timer {
+            color: #ff6b6b;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .channel-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #4CAF50;
+        }
+        .channel-info small {
+            display: block;
+            color: #666;
+            margin: 5px 0;
+        }
+        .method-selector {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .method-selector button {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .method-selector button.active {
+            border-color: #4CAF50;
+            background: #f0fff0;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .method-selector button:hover {
+            border-color: #4CAF50;
+        }
+        .resend-btn {
+            background: transparent;
+            color: #4CAF50;
+            border: 2px solid #4CAF50;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: auto;
+        }
+        .resend-btn:hover {
+            background: #4CAF50;
+            color: white;
+        }
+        .resend-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="auth-box">
+            <h1>🔐 Login</h1>
+            <p>Sign in to your account</p>
+
+            <!-- Login Method Selector -->
+            <div class="method-selector">
+                <button class="active" onclick="selectMethod('email')" id="emailBtn">
+                    📧 Email
+                </button>
+                <button onclick="selectMethod('phone')" id="phoneBtn">
+                    📱 Phone
+                </button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" onsubmit="sendOTP(event)">
+                <div id="emailInput" style="display:block;">
+                    <input type="email" id="email" placeholder="Enter your email" required>
+                </div>
+                <div id="phoneInput" style="display:none;">
+                    <input type="tel" id="phone" placeholder="Enter your phone number" required>
+                </div>
+
+                <button type="submit" class="btn-primary" id="sendOtpBtn">
+                    📨 Send OTP
+                </button>
+            </form>
+
+            <!-- OTP Verification Section -->
+            <div id="otpSection" style="display:none;">
+                <div class="channel-info">
+                    <p>📱 Check your WhatsApp Channels for OTP</p>
+                    <small>📧 Email Channel: <strong id="emailChannel">0029VbDkhbd9hXF8qWpV3f0z</strong></small>
+                    <small>📱 Phone Channel: <strong id="phoneChannel">0029VbDZokl3rZZXoE9TMu2J</strong></small>
+                </div>
+
+                <p>Enter the 6-digit OTP sent to your WhatsApp</p>
+                
+                <div class="otp-input-group" id="otpInputs">
+                    <input type="text" maxlength="1" class="otp-input" id="otp1" autofocus>
+                    <input type="text" maxlength="1" class="otp-input" id="otp2">
+                    <input type="text" maxlength="1" class="otp-input" id="otp3">
+                    <input type="text" maxlength="1" class="otp-input" id="otp4">
+                    <input type="text" maxlength="1" class="otp-input" id="otp5">
+                    <input type="text" maxlength="1" class="otp-input" id="otp6">
+                </div>
+
+                <div class="timer" id="timerDisplay">⏳ OTP expires in 10:00</div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="verifyOTP()" class="btn-primary" id="verifyBtn">
+                        ✅ Verify & Login
+                    </button>
+                    <button onclick="resendOTP()" class="resend-btn" id="resendBtn" disabled>
+                        🔄 Resend OTP (wait 60s)
+                    </button>
+                </div>
+
+                <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                    💡 OTP expires in 10 minutes. Max 3 attempts.
+                </p>
+            </div>
+
+            <div id="message" class="message"></div>
+
+            <p class="auth-link">
+                Don't have an account? <a href="register.html">Sign Up</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // ============ STATE ============
+        let loginMethod = 'email';
+        let userId = null;
+        let otpTimer = null;
+        let timerInterval = null;
+        let otpExpiryTime = null;
+
+        // ============ DOM ELEMENTS ============
+        const emailInput = document.getElementById('emailInput');
+        const phoneInput = document.getElementById('phoneInput');
+        const emailField = document.getElementById('email');
+        const phoneField = document.getElementById('phone');
+        const loginForm = document.getElementById('loginForm');
+        const otpSection = document.getElementById('otpSection');
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const resendBtn = document.getElementById('resendBtn');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const messageDiv = document.getElementById('message');
+
+        // ============ OTP INPUT HANDLING ============
+        document.querySelectorAll('.otp-input').forEach((input, index) => {
+            // Auto focus next
+            input.addEventListener('input', (e) => {
+                if (e.target.value.length === 1) {
+                    const next = document.querySelector(`#otp${index + 2}`);
+                    if (next) next.focus();
+                    e.target.classList.add('filled');
+                }
+            });
+
+            // Backspace handling
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value) {
+                    const prev = document.querySelector(`#otp${index}`);
+                    if (prev) prev.focus();
+                }
+            });
+
+            // Paste handling
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const paste = (e.clipboardData || window.clipboardData).getData('text');
+                const digits = paste.replace(/\D/g, '').slice(0, 6);
+                const inputs = document.querySelectorAll('.otp-input');
+                digits.split('').forEach((digit, i) => {
+                    if (inputs[i]) {
+                        inputs[i].value = digit;
+                        inputs[i].classList.add('filled');
+                    }
+                });
+                const lastIndex = Math.min(digits.length, 5);
+                const nextInput = document.querySelector(`#otp${lastIndex + 1}`);
+                if (nextInput) nextInput.focus();
+            });
+        });
+
+        // ============ METHOD SELECTOR ============
+        function selectMethod(method) {
+            loginMethod = method;
+            document.querySelectorAll('.method-selector button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            if (method === 'email') {
+                document.getElementById('emailBtn').classList.add('active');
+                emailInput.style.display = 'block';
+                phoneInput.style.display = 'none';
+                emailField.required = true;
+                phoneField.required = false;
+            } else {
+                document.getElementById('phoneBtn').classList.add('active');
+                emailInput.style.display = 'none';
+                phoneInput.style.display = 'block';
+                emailField.required = false;
+                phoneField.required = true;
+            }
+            hideMessage();
+        }
+
+        // ============ SEND OTP ============
+        async function sendOTP(event) {
+            event.preventDefault();
+            
+            const email = emailField.value.trim();
+            const phone = phoneField.value.trim();
+            
+            if (loginMethod === 'email' && !email) {
+                showMessage('Please enter your email', 'error');
+                return;
+            }
+            if (loginMethod === 'phone' && !phone) {
+                showMessage('Please enter your phone number', 'error');
+                return;
+            }
+
+            const payload = loginMethod === 'email' 
+                ? { email } 
+                : { phone };
+
+            try {
+                showMessage('📨 Sending OTP... Please check your WhatsApp Channels', 'info');
+                sendOtpBtn.disabled = true;
+                sendOtpBtn.textContent = '⏳ Sending...';
+
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.requiresVerification) {
+                    userId = data.userId;
+                    loginForm.style.display = 'none';
+                    otpSection.style.display = 'block';
+                    showMessage('✅ OTP sent to WhatsApp Channels!', 'success');
+                    startTimer();
+                } else if (data.success) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    showMessage('✅ Login successful! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1500);
+                } else {
+                    showMessage('❌ ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error: ' + error.message, 'error');
+            } finally {
+                sendOtpBtn.disabled = false;
+                sendOtpBtn.textContent = '📨 Send OTP';
+            }
+        }
+
+        // ============ VERIFY OTP ============
+        async function verifyOTP() {
+            const code = Array.from(document.querySelectorAll('.otp-input'))
+                .map(input => input.value)
+                .join('');
+
+            if (code.length !== 6) {
+                showMessage('Please enter all 6 digits', 'error');
+                return;
+            }
+
+            try {
+                showMessage('⏳ Verifying...', 'info');
+                verifyBtn.disabled = true;
+
+                const response = await fetch('/api/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, code })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    showMessage('✅ Login successful! Redirecting...', 'success');
+                    clearInterval(timerInterval);
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1500);
+                } else {
+                    showMessage('❌ ' + data.error, 'error');
+                    // Highlight wrong inputs
+                    document.querySelectorAll('.otp-input').forEach(input => {
+                        input.style.borderColor = '#ff6b6b';
+                        setTimeout(() => {
+                            input.style.borderColor = '';
+                        }, 2000);
+                    });
+                }
+            } catch (error) {
+                showMessage('❌ Error: ' + error.message, 'error');
+            } finally {
+                verifyBtn.disabled = false;
+            }
+        }
+
+        // ============ RESEND OTP ============
+        async function resendOTP() {
+            try {
+                showMessage('📨 Resending OTP...', 'info');
+                resendBtn.disabled = true;
+
+                const response = await fetch('/api/resend-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('✅ New OTP sent to WhatsApp Channels!', 'success');
+                    // Reset OTP inputs
+                    document.querySelectorAll('.otp-input').forEach(input => {
+                        input.value = '';
+                        input.classList.remove('filled');
+                    });
+                    document.querySelector('#otp1').focus();
+                    startTimer();
+                } else {
+                    showMessage('❌ ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error: ' + error.message, 'error');
+            } finally {
+                resendBtn.disabled = false;
+            }
+        }
+
+        // ============ TIMER ============
+        function startTimer() {
+            const expiryMinutes = parseInt('${process.env.OTP_EXPIRY_MINUTES}') || 10;
+            let timeLeft = expiryMinutes * 60;
+            otpExpiryTime = Date.now() + (timeLeft * 1000);
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const now = Date.now();
+                const remaining = Math.max(0, Math.floor((otpExpiryTime - now) / 1000));
+                
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    timerDisplay.textContent = '⏳ OTP expired! Please request a new one.';
+                    timerDisplay.style.color = '#ff6b6b';
+                    verifyBtn.disabled = true;
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = '🔄 Resend OTP';
+                    return;
+                }
+
+                const minutes = Math.floor(remaining / 60);
+                const seconds = remaining % 60;
+                timerDisplay.textContent = `⏳ OTP expires in ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                timerDisplay.style.color = remaining < 60 ? '#ff6b6b' : '#333';
+
+                // Enable resend after 60 seconds
+                const timeSinceSend = Math.floor((Date.now() - (otpExpiryTime - (expiryMinutes * 60 * 1000))) / 1000);
+                if (timeSinceSend >= 60) {
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = '🔄 Resend OTP';
+                } else {
+                    const waitTime = 60 - timeSinceSend;
+                    resendBtn.textContent = `⏳ Wait ${waitTime}s`;
+                }
+            }, 1000);
+        }
+
+        // ============ MESSAGE FUNCTIONS ============
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = 'message ' + type;
+            messageDiv.style.display = 'block';
+        }
+
+        function hideMessage() {
+            messageDiv.style.display = 'none';
+        }
+
+        // ============ KEYBOARD SHORTCUTS ============
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && otpSection.style.display === 'block') {
+                verifyOTP();
+            }
+        });
+
+        // ============ INIT ============
+        // Check if already logged in
+        const token = localStorage.getItem('token');
+        if (token) {
+            window.location.href = 'dashboard.html';
+        }
+    </script>
+</body>
+                      </html>
